@@ -8,7 +8,8 @@ before_install:
 install: 
   - pip install flake8 tox
 
- 
+script: 
+  - nosetests 
 after_install:
  - sudo python setup.py bdist
  - sudo python setup.py sdist
