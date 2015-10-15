@@ -5,9 +5,12 @@ python:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y python-poppler 
-
 install: 
   - pip install flake8 tox
+
+before_script:
+  - flake8
+  - mkdir -p shippable/{codecoverage,testresults}
 
 script: 
   - tox -e py${TRAVIS_PYTHON_VERSION/\./}
