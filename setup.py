@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 #
-# PdfBooklet 2.2.2 - GTK+ based utility to create booklets and other layouts 
+# PdfBooklet 2.3.2 - GTK+ based utility to create booklets and other layouts 
 # from PDF documents.
-# Copyright (C) 2008-2012 GAF Software
+# Copyright (C) 2008-2015 GAF Software
 # <https://sourceforge.net/projects/pdfbooklet>
 #
 # This program is free software; you can redistribute it and/or modify

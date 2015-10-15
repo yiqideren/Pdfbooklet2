@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get install -y python-poppler 
 
 install: 
-  - pip install tox
+  - pip install flake8 tox
 
 script: 
   - tox -e py${TRAVIS_PYTHON_VERSION/\./}
