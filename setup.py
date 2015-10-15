@@ -25,14 +25,14 @@ import os
 import re
 import glob
 
-"""
+
 try :
     from setuptools import setup
     print "installation with setuptools"
 except :
-"""
 
-from distutils.core import setup
+
+    from distutils.core import setup
 
 
 
