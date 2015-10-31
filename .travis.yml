@@ -10,8 +10,6 @@ install:
 
 script: 
   - nosetests 
-after_success:
- - sudo python setup.py bdist
- - sudo python setup.py sdist
- - sudo python setup.py bdist_rpm
+after_success: 
+  - sudo python build.py
   
