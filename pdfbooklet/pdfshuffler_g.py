@@ -78,7 +78,7 @@ import gio          # for inquiring mime types information
 import cairo
 
 import poppler      #for the rendering of pdf pages
-from pdf import PdfFileWriter, PdfFileReader
+from pypdf113.pdf import PdfFileWriter, PdfFileReader
 
 from pdfshuffler_iconview import CellRendererImage
 gobject.type_register(CellRendererImage)
@@ -487,6 +487,7 @@ class PdfShuffler:
         filter_pdf = gtk.FileFilter()
         filter_pdf.set_name(_('PDF files'))
         filter_pdf.add_mime_type('application/pdf')
+        filter_pdf.add_pattern('*.pdf')
         chooser.add_filter(filter_pdf)
 
         filter_all = gtk.FileFilter()
@@ -608,6 +609,7 @@ class PdfShuffler:
         filter_pdf = gtk.FileFilter()
         filter_pdf.set_name(_('PDF files'))
         filter_pdf.add_mime_type('application/pdf')
+        filter_pdf.add_pattern('*.pdf')
         chooser.add_filter(filter_pdf)
         chooser.set_filter(filter_pdf)
 
@@ -696,7 +698,7 @@ class PdfShuffler:
 
         global shuffler_selection_a
         #if len(iconview.get_selected_items()) > 1:
-        if len(shuffler_selection_a) > 0 :            
+        if len(shuffler_selection_a) > 0 :
             iconview.stop_emission('drag_begin')
             context.set_icon_stock(gtk.STOCK_DND_MULTIPLE, 0, 0)
             for a in shuffler_selection_a :

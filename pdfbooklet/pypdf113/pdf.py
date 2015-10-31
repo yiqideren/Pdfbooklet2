@@ -939,12 +939,18 @@ class PdfFileReader(object):
         id1_entry = id_entry[0].getObject()
         if rev == 2:
             U, key = _alg34(password, owner_entry, p_entry, id1_entry)
+            real_U = encrypt['/U'].getObject().original_bytes
         elif rev >= 3:
             U, key = _alg35(password, rev,
                     encrypt["/Length"].getObject() / 8, owner_entry,
                     p_entry, id1_entry,
                     encrypt.get("/EncryptMetadata", BooleanObject(False)).getObject())
-        real_U = encrypt['/U'].getObject().original_bytes
+            real_U = encrypt['/U'].getObject().original_bytes
+            # Since the 16 final bytes are arbitray (see explanation in _alg35), don't consider these bytes.
+            # In some implementations they may contain null bytes. In PdfCreator (2012) they contain the password
+            U = U[:-16]
+            real_U = real_U[:-16]
+
         return U == real_U, key
 
     def getIsEncrypted(self):
@@ -1976,6 +1982,8 @@ def _alg35(password, rev, keylen, owner_entry, p_entry, id1_entry, metadata_encr
     # mean, so I have used null bytes.  This seems to match a few other
     # people's implementations)
     return val + ('\x00' * 16), key
+
+
 
 #if __name__ == "__main__":
 #    output = PdfFileWriter()

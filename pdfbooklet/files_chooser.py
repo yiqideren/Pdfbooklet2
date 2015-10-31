@@ -2,7 +2,7 @@
 # coding: utf-8 -*-
 
 # version 1.2
-# Bug fix : Files with accent in the path were not opened 
+# Bug fix : Files with accent in the path were not opened
 
 import os
 
@@ -11,7 +11,7 @@ import gtk
 import pango
 import gio
 
-from pdf import PdfFileReader
+from pypdf113.pdf import PdfFileReader
 
 ### If gettext can't load, we must define the _(...) function
 ##if os.path.isfile("./locale/gui/LC_MESSAGES/pdfBooklet.mo") == False :
@@ -20,7 +20,7 @@ from pdf import PdfFileReader
 
 
 class Chooser:
-    def __init__(self, 
+    def __init__(self,
                  inputFiles_a = None,
                  prog_path_u = "",
                  mru_dir = ""):
@@ -81,6 +81,7 @@ class Chooser:
         filter_pdf = gtk.FileFilter()
         filter_pdf.set_name(_('PDF files'))
         filter_pdf.add_mime_type('application/pdf')
+        filter_pdf.add_pattern('*.pdf')
         chooser.add_filter(filter_pdf)
         chooser.set_filter(filter_pdf)
 
@@ -159,7 +160,7 @@ class Chooser:
         self.treestore.append([filename, numpages])
 
     # regenerate the array of files (easier to use than the treestore)
-    def genFilesArray(self, dummy = "") :        
+    def genFilesArray(self, dummy = "") :
         inputFiles_a = {}
         selectedFiles1 = self.chooser.get_filenames()
         # eliminate directories
@@ -169,7 +170,7 @@ class Chooser:
             if os.path.isdir(file_u) :
                 pass
             else :
-                selectedFiles.append(file_u)            
+                selectedFiles.append(file_u)
 
         size_i = len(self.treestore)
 

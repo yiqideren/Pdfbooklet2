@@ -1,12 +1,15 @@
 #!/usr/bin/python
 # coding: utf-8 -*-
 
-# version 2.2.2.3;  24 / 02 / 2014
-
+# version 2.3.2;  30 / 09 / 2015
+# Revision 10  (bug fix)
+# Add advanced transformations in the ini file
+# Add support for encrypted files
+# Add support for even and odd pages
 # This version is compatible with Linux
 
 
-PB_version = "2.2.2"
+PB_version = "2.3.2"
 
 
 """
@@ -45,20 +48,19 @@ knowledge of the CeCILL license and that you accept its terms.
 
 """
 TODO :
-global transformations : seulement cette page
-Autoscale : pourrait-il fonctionner quand on utilise une taille personnalisée ? En fait cela joue au niveau des pages, pas au niveau global
+
+Autoscale : Distinguer les options : pour les pages et global ? Pas sûr que ce soit utile.
 Quand un répertoire est sélectionné, avertir
 quand on ouvre un fichier, et puis ensuite un projet qui a plusieurs fichiers, pdfshuffler n'est pas bien mis à jour
 popumenu rotate : les valeurs de la fenêtre transformations ne sont pas mises à jour.
 
 bugs
 fichier ini : ouvrir un fichier, ouvrir le fichier ini correspondant. Ne rien changer, fermer, le fichier ini est mis à jour à un moment quelconque et souvent toutes les transformations sont remises à zéro.
-Dans la même manipulation , quand on ouvre, il arrive que les modifications d'une page soient conservées et pas celle de l'autre page (en cahir)
+Dans la même manipulation , quand on ouvre, il arrive que les modifications d'une page soient conservées et pas celle de l'autre page (en cahier)
 
 
 petits défauts
 A propos : le lien vers le site ne marche pas
-quand on clique sur les boutons de global rotation, double update du preview (problème des boutons radio)
 
 améliorations
 Le tooltip pour le nom de fichier pourrait afficher les valeurs réelles que donneront les différents paramètres
@@ -85,18 +87,16 @@ import gio          #to inquire mime types information
 
 gtk.rc_parse("./gtkrc")
 
-#from pyPdf_e import PdfFileReader, PdfFileWriter, generic
-#from pyPdf_e import *
 
-from pdf import PdfFileReader, PdfFileWriter
-from pdf import *
-import generic
+from pypdf113.pdf import PdfFileReader, PdfFileWriter
+import pypdf113.generic
+
 from files_chooser import Chooser
 
 import locale       #for multilanguage support
 import gettext
 import elib_intl
-#elib_intl.install("pdfbooklet", "share/locale")
+elib_intl.install("pdfbooklet", "share/locale")
 
 debug_b = 0
 
@@ -148,7 +148,7 @@ def get_value(dictionary, key, default = 0) :
         return dictionary[key]
 
 
-def unicode2(string) :
+def unicode2(string, dummy = "") :
     if isinstance(string,unicode) :
         return string
     else :
@@ -162,6 +162,11 @@ def unicode2(string) :
                 return string       # Is this the good option ? Return False or an empty string ?
                 return u"inconnu"
 
+def printExcept() :
+    a,b,c = sys.exc_info()
+    for d in traceback.format_exception(a,b,c) :
+        print d,
+
 class gtkGui:
     # parameters :
     # render is an instance of pdfRenderer
@@ -170,15 +175,13 @@ class gtkGui:
     def __init__(self,
                     render,
                     pdfList = None,
-                    pageSelection = None,
-                    language = ""):
+                    pageSelection = None):
 
         global config, rows_i, columns_i, step_i, sections, output, input1, adobe_l, inputFiles_a, inputFile_a
         global numfolio, prependPages, appendPages, ref_page, selection, PSSelection
         global numPages, pagesSel, llx_i, lly_i, urx_i, ury_i, mediabox_l
         global ouputFile, optionsDict, selectedIndex_a, selected_page, deletedIndex_a, app
-        translate_path_s = translate_path_u.encode("utf-8")
-        elib_intl.install("pdfbooklet", translate_path_s, language)
+        elib_intl.install("pdfbooklet", "share/locale")
 
         if None != pdfList :
             inputFiles_a = pdfList
@@ -186,6 +189,8 @@ class gtkGui:
         else :
             inputFiles_a = {}
             inputFile_a = {}
+        self.permissions_i = -1     # all permissions
+        self.password_s = ""
         rows_i = 1
         columns_i = 2
         urx_i = 200
@@ -239,7 +244,6 @@ class gtkGui:
         self.mru_items = {}
         self.menuAdd()
 
-        self.text1 = self.arw["text1"].get_buffer()
 
         self.selection_s = ""
 
@@ -260,6 +264,8 @@ class gtkGui:
         self.scale1 = self.arw["scale1"]
         self.rotation1 = self.arw["rotation1"]
         self.thispage = self.arw["thispage"]
+        self.evenpages = self.arw["evenpages"]
+        self.oddpages = self.arw["oddpages"]
 
         self.area.show()
         self.area.connect("expose-event", self.area_expose)
@@ -347,10 +353,23 @@ class gtkGui:
 
         i = 1
         inputFile_a = {}
+        inputFile_details = {}
         for key in inputFiles_a :
             val = inputFiles_a[key]
             if os.path.isfile(val) :
                 inputFile_a[val] = PdfFileReader(file(val, "rb"))
+                inputFile_details[val] = {}
+                if inputFile_a[val].getIsEncrypted() :
+                    inputFile_details[val]["encrypt"] = True
+                    if not hasattr(inputFile_a[val], "_decryption_key") :   # if not already decrypted
+                        password = self.get_text(None, _("Please, enter the password for this file"))
+                        if password != None :
+                            password = password.encode("utf8")
+                            inputFile_a[val].decrypt(password)     # Encrypted file
+                            if key == 1 :           # we get permissions and password from the first file
+                                (a,b,self.permissions_i) = inputFile_a[val].getPermissions()
+                                self.password_s = password
+                        inputFile_details[val]["password"] = password
                 selectedIndex_a = {}
                 deletedIndex_a = {}
 
@@ -388,7 +407,7 @@ class gtkGui:
         response = gtk_chooser.run()
         if response == gtk.RESPONSE_OK:
             filename = gtk_chooser.get_filename()
-            filename_u = unicode(filename, "utf-8")
+            filename_u = unicode2(filename, "utf-8")
             self.mru(filename)
             self.openProject2(filename_u)
             self.write_mru2(filename_u)       # write the location of the opened directory in the cfg file
@@ -406,17 +425,22 @@ class gtkGui:
         widget_name = widget.get_name()
         filenames_list_s = self.mru_items[widget_name][1]
 
+        # are we opening a project file ?
+        filename_u = unicode2(filenames_list_s[0], "utf-8")
+        extension_s = os.path.splitext(filename_u)[1]
+        if extension_s == ".ini" :
+            self.openProject2(filename_u)
+            return
+        else :
+            self.parseIniFile("pdfbooklet.cfg")     # reset transformations
+
         inputFiles_a = {}
 
         for filename_s in filenames_list_s :
-            filename_u = unicode(filename_s, "utf-8")
+            filename_u = unicode2(filename_s, "utf-8")
             extension_s = os.path.splitext(filename_u)[1]
-            if extension_s == ".ini" :
-                self.openProject2(filename_u)
-                return
-            elif extension_s == ".pdf" :
-                i = len(inputFiles_a)
-                inputFiles_a[i + 1] = filename_u
+            i = len(inputFiles_a)
+            inputFiles_a[i + 1] = filename_u
 
 
         self.loadPdfFiles()
@@ -451,17 +475,15 @@ class gtkGui:
             preview_b = True
             project_b = False
 
-            self.pagesTr = {}
-            for section in config.sections() :
-                self.pagesTr[section] = {}
-                for option, value in config.items(section) :
-                    self.pagesTr[section][option] = value
+
             # Update gui before updating preview, since preview takes its data from the gui
             while gtk.events_pending():
                         gtk.main_iteration()
 
-            if self.pagesTr["options"]["presets"] == "radiopreset8" :
-                self.user_defined(False)
+            if ("options" in self.pagesTr
+                and "presets" in self.pagesTr["options"]
+                and self.pagesTr["options"]["presets"] == "radiopreset8") :
+                    self.user_defined(False)
             else :
                 self.previewUpdate()
 
@@ -503,7 +525,7 @@ class gtkGui:
 
             elif response == gtk.RESPONSE_ACCEPT:
                 filename = gtk_chooser.get_filename()
-                filename_u = unicode(filename, "utf-8")
+                filename_u = unicode2(filename, "utf-8")
                 if filename_u[-4:] != ".ini" :
                     filename_u += u".ini"
                 gtk_chooser.destroy()
@@ -549,8 +571,7 @@ class gtkGui:
             mrudir = os.path.split(filenames_a)[0]
 
         configtemp = ConfigParser.RawConfigParser()
-        if os.path.isfile(sfp2("pdfbooklet.cfg")) :
-            configtemp.read(sfp2("pdfbooklet.cfg"))
+        configtemp.read(sfp2("pdfbooklet.cfg"))
 
 ##    if configtemp.has_section(section) == False :
 ##        configtemp.add_section(section)
@@ -593,14 +614,13 @@ class gtkGui:
             configtemp = ConfigParser.RawConfigParser()
             configtemp.read(sfp2("pdfbooklet.cfg"))
 
-            if configtemp.has_section("mru2") :
+            try :
                 mru_dir = configtemp.get("mru2","mru2")
-            else :
+            except :
                 mru_dir = ""
+
             configtemp = None
             return mru_dir
-        else :
-            return ""
 
 
     def write_mru2(self, filename_u) :
@@ -626,9 +646,9 @@ class gtkGui:
         # Called by function mru, adds an entry to the menu
 
         configtemp = ConfigParser.RawConfigParser()
-        if os.path.isfile(sfp2("pdfbooklet.cfg")) :
-            configtemp.read(sfp2("pdfbooklet.cfg"))
+        configtemp.read(sfp2("pdfbooklet.cfg"))
 
+        # TODO : voir pour unicode (filepath_s ou filepath_u ?)
         if configtemp.has_section("mru") :
             for item in ["mru1", "mru2", "mru3", "mru4"] :
                 if configtemp.has_option("mru", item) :
@@ -653,7 +673,12 @@ class gtkGui:
         for a in out_a :
             iniFile.write("[" + a + "]\n")
             for b in out_a[a] :
-                iniFile.write(b + " = " + out_a[a][b] + "\n")
+                value = out_a[a][b]
+                if value == True :
+                    value = '1'
+                elif value == False :
+                    value = '0'
+                iniFile.write(b + " = " + value + "\n")
             iniFile.write("\n")
         iniFile.close()
 
@@ -662,7 +687,7 @@ class gtkGui:
 
         userGuide_s = "documentation/" + _("Pdf-Booklet_User's_Guide.pdf")
         if sys.platform == 'linux2':
-            subprocess.call(["xdg-open", sfp(userGuide_s)])
+            subprocess.call(["xdg-open", userGuide_s])
         else:
             os.startfile(sfp(userGuide_s))
 
@@ -698,7 +723,12 @@ class gtkGui:
             self.pagesTr[Id]["htranslate1"] = "0"
             self.pagesTr[Id]["vtranslate1"] = "0"
             self.pagesTr[Id]["scale1"] = "100"
-
+            self.pagesTr[Id]["xscale"] = 1
+            self.pagesTr[Id]["yscale"] = 1
+            self.pagesTr[Id]["xscale1"] = '100'
+            self.pagesTr[Id]["yscale1"] = '100'
+            self.pagesTr[Id]["vflip"] = False
+            self.pagesTr[Id]["hflip"] = False
 
 
         self.pagesTr[Id]["rotate"] = int(value)
@@ -801,6 +831,16 @@ class gtkGui:
                 return None
         return value
 
+    def readBoolean(self, entry) :
+        value = entry.get_text()
+        try :
+            if int(value) < 1 :
+                return False
+            else :
+                return True
+        except :
+            self.showwarning(_("Invalid data"), _("Invalid data for %s - must be 0 or 1. Aborting \n") % widget_s)
+
 
     def readGui(self, logdata = 1) :
         global config, rows_i, columns_i, step_i, sections, output, input1, input2, adobe_l, inputFiles_a, inputFile_a
@@ -881,7 +921,7 @@ class gtkGui:
                 outputScale = deltaH
 
 
-        elif self.arw["radiosize3"].get_active() == 1 :
+        elif self.arw["radiosize3"].get_active() == 1 :         # user defined
 
                 customX = self.readNumEntry(self.arw["outputWidth"], _("Width"))
                 if customX == None : return False
@@ -890,6 +930,15 @@ class gtkGui:
 
 
                 mediabox_l = [ customX * (1 / adobe_l), customY * (1 / adobe_l)]
+
+
+                # calculate  the scale factor
+                deltaW = mediabox_l[0] / oWidth_i
+                deltaH = mediabox_l[1] / oHeight_i
+                if deltaW < deltaH :
+                    outputScale = deltaW
+                else :
+                    outputScale = deltaH
 
 
         outputUrx_i = mediabox_l[0]
@@ -914,6 +963,9 @@ class gtkGui:
                 widget.set_value(float(data))
             elif z3 == "GtkTextView" :
                 widget.get_buffer().set_text(config.get(section, option))
+            elif z3 == "GtkCheckButton" :
+                if config.getboolean(section, option) == 1 :
+                    widget.set_active(True)
 
             else :
                 widget.set_text(config.get(section, option))
@@ -930,6 +982,17 @@ class gtkGui:
 
         config = ConfigParser.RawConfigParser()
         config.readfp(open(inifile))
+
+        # store in dictionary
+        self.pagesTr = {}
+        for section in config.sections() :
+            self.pagesTr[section] = {}
+            for option, value in config.items(section) :
+                if value == 'False' :
+                    value = False
+                elif value == 'True' :
+                    value = True
+                self.pagesTr[section][option] = value
 
 
         self.setOption("rows", self.arw["entry11"])
@@ -948,6 +1011,10 @@ class gtkGui:
         self.setOption("Vtranslate", self.arw["Vtranslate2"], "output")
         self.setOption("Scale", self.arw["scale2"], "output")
         self.setOption("Rotate", self.arw["rotation2"], "output")
+        self.setOption("xscale", self.arw["xscale2"], "output")
+        self.setOption("yscale", self.arw["yscale2"], "output")
+        self.setOption("vflip", self.arw["vflip2"], "output")
+        self.setOption("hflip", self.arw["hflip2"], "output")
 
 
         # inputs
@@ -962,8 +1029,8 @@ class gtkGui:
                 temp1 = config.get("options", "inputs")
                 inputFiles_a = {}
                 for a in temp1.split("|") :
-                    if os.path.isfile(unicode(a,"utf-8")) :
-                        filename = unicode(a,"utf-8")
+                    if os.path.isfile(unicode2(a,"utf-8")) :
+                        filename = unicode2(a,"utf-8")
                         pdfFile = PdfFileReader(file(filename, "rb"))
                         numpages = pdfFile.getNumPages()
                         path, shortFileName = os.path.split(filename)
@@ -1024,8 +1091,7 @@ class gtkGui:
         if config.has_option("options", "overwrite") :
             if config.getboolean("options", "overwrite") == 1 : self.overwrite.set_active(1)
             else : self.overwrite.set_active(0)
-#
-#       Gaston - 14 Sep 2013
+
         if config.has_option("options", "righttoleft") :
             if config.getboolean("options", "righttoleft") == 1 : self.righttoleft.set_active(1)
             else : self.righttoleft.set_active(0)
@@ -1084,6 +1150,11 @@ class gtkGui:
         out_a["output"]["Vtranslate"] = self.arw["Vtranslate2"].get_text()
         out_a["output"]["Scale"] = self.arw["scale2"].get_text()
         out_a["output"]["Rotate"] = self.arw["rotation2"].get_text()
+        out_a["output"]["xScale"] = self.arw["xscale2"].get_text()
+        out_a["output"]["yScale"] = self.arw["yscale2"].get_text()
+        out_a["output"]["vflip"] = self.arw["vflip2"].get_active()
+        out_a["output"]["hflip"] = self.arw["vflip2"].get_active()
+
 
         # radio buttons
 
@@ -1109,9 +1180,9 @@ class gtkGui:
 
         # most recently used
 
+        # TODO : if file exists (ici et ailleurs)
         configtemp = ConfigParser.RawConfigParser()
-        if os.path.isfile(sfp2("pdfbooklet.cfg")) :
-            configtemp.read(sfp2("pdfbooklet.cfg"))
+        configtemp.read(sfp2("pdfbooklet.cfg"))
 
         if configtemp.has_section("mru"):
             if configtemp.has_option("mru","mru1") :
@@ -1397,7 +1468,6 @@ class gtkGui:
         global previewColPos_a, previewRowPos_a, pageContent_a, previewPagePos_a, thumbnail
 
         #print "===> draw pixmap"
-
         if event != 0 and nochange_b == False :
             thumbnail = self.createThumbnail()   # TODO : ce n'est pas toujours nécessaire : seulement en cas de redimensionnment de la fenêtre
         if thumbnail == False or thumbnail == "" :
@@ -1543,14 +1613,33 @@ class gtkGui:
         return rotated_layout
 
 
-    def selectPage (self, widget, event):
+    def selectPage (self, widget, event=None):
+        # Called by a click on the preview or on the radio buttons, this function will :
+        #   - Select the appropriate Id
+        #   - launch area_expose to update the display
+        #   - fill in the gtkEntry widgets which contains the transformations
+
         global previewColPos_a, previewRowPos_a, canvasId20, pageContent_a, selected_page
         global selectedIndex_a
 
-        if event.type == gtk.gdk.BUTTON_PRESS:
-            if event.button == 3 :
 
+
+        if event == None :                  # Click on a radio button
+            if self.thispage.get_active() == 1 :
+                pageId = str(selected_page[2]) + ":" + str(selected_page[3])
+                Id = pageId
+            elif self.evenpages.get_active() == 1 :
+                Id = "even"
+            elif self.oddpages.get_active() == 1 :
+                Id = "odd"
+            else :         # first button, pages in this position
+                humanReadableRow_i = rows_i - selected_page[4]
+                Id = str(str(humanReadableRow_i) + "," + str(selected_page[5] + 1))
+
+        elif event.type == gtk.gdk.BUTTON_PRESS:
+            if event.button == 3 :            # right click, runs the context menu
                 self.arw["contextmenu1"].popup(None, None, None, event.button, event.time)
+                return
 
             else :
                 # get preview area
@@ -1570,7 +1659,7 @@ class gtkGui:
 
                         return
 
-
+                # find the row and column
                 for c in range(len(previewColPos_a)) :
                     if xpos > previewColPos_a[c] and xpos < previewColPos_a[c + 1]:
                         leftPos_i = previewColPos_a[c]
@@ -1623,8 +1712,6 @@ class gtkGui:
 
                 self.area_expose(0,0,0)  # draw again to delete previous rectangles and so on
 
-
-                # Load settings in transformation dialog
                 # position reference
                 humanReadableRow_i = rows_i - r1
                 Id = str(str(humanReadableRow_i) + "," + str(c1 + 1))
@@ -1633,20 +1720,54 @@ class gtkGui:
                 # if transformation is for this page only, use page ref instead of position ref
                 if self.thispage.get_active() == 1 :
                     Id = pageId
-                if self.pagesTr.has_key(Id) :
-                    if "htranslate1" in self.pagesTr[Id] :
-                        self.arw["Htranslate1"].set_text(str(self.pagesTr[Id]["htranslate1"]))
-                    if "vtranslate1" in self.pagesTr[Id] :
-                        self.Vtranslate1.set_text(str(self.pagesTr[Id]["vtranslate1"]))
-                    if "scale1" in self.pagesTr[Id] :
-                        self.scale1.set_text(str(self.pagesTr[Id]["scale1"]))
-                    if "rotate1" in self.pagesTr[Id] :
-                        self.rotation1.set_text(str(self.pagesTr[Id]["rotate1"]))
-                else :  # defaults
-                    self.arw["Htranslate1"].set_text("0")
-                    self.Vtranslate1.set_text("0")
-                    self.scale1.set_text("100")
-                    self.rotation1.set_text("0")
+
+        else :              # unsupported event
+            return
+
+        # Load settings in transformation dialogs
+
+        # defaults
+        self.arw["Htranslate1"].set_text("0")
+        self.Vtranslate1.set_text("0")
+        self.scale1.set_text("100")
+        self.rotation1.set_text("0")
+        self.arw["xscale1"].set_text("100")
+        self.arw["yscale1"].set_text("100")
+        self.arw["vflip1"].set_active(False)
+        self.arw["hflip1"].set_active(False)
+
+
+        if self.pagesTr.has_key(Id) :
+            if "htranslate1" in self.pagesTr[Id] :
+                self.arw["Htranslate1"].set_text(str(self.pagesTr[Id]["htranslate1"]))
+            if "vtranslate1" in self.pagesTr[Id] :
+                self.Vtranslate1.set_text(str(self.pagesTr[Id]["vtranslate1"]))
+            if "scale1" in self.pagesTr[Id] :
+                self.scale1.set_text(str(self.pagesTr[Id]["scale1"]))
+            if "rotate1" in self.pagesTr[Id] :
+                self.rotation1.set_text(str(self.pagesTr[Id]["rotate1"]))
+            if "xscale1" in self.pagesTr[Id] :
+                self.arw["xscale1"].set_text(str(self.pagesTr[Id]["xscale1"]))
+            if "yscale1" in self.pagesTr[Id] :
+                self.arw["yscale1"].set_text(str(self.pagesTr[Id]["yscale1"]))
+
+            if "vflip" in self.pagesTr[Id] :
+                bool_b = self.pagesTr[Id]["vflip"]
+                if bool_b == "True" or bool_b == True or bool_b == "1" :           # when parameter comes from the ini file, it is a string
+                    bool_b = 1
+                elif bool_b == "False" or bool_b == False or bool_b == "0" :
+                    bool_b = 0
+                self.arw["vflip1"].set_active(bool_b)
+            if "hflip" in self.pagesTr[Id] :
+                bool_b = self.pagesTr[Id]["hflip"]
+                if bool_b == "True" or bool_b == True or bool_b == "1" :           # when parameter comes from the ini file, it is a string
+                    bool_b = 1
+                elif bool_b == "False" or bool_b == False or bool_b == "0" :
+                    bool_b = 0
+
+                self.arw["hflip1"].set_active(bool_b)
+
+
 
     def deletePage (self, widget):
         global pageContent_a, selected_page, deletedIndex_a, previewPagePos_a
@@ -1771,8 +1892,8 @@ class gtkGui:
         global mediabox_l0, columns_i, rows_i, step_i, urx_i, ury_i, mediabox_l
         global outputScale, pageContent_a
         global selectedIndex_a, deletedIndex_a, previewPagePos_a
-        global thumbnail, areaAllocationW_i, areaAllocationH_i
-        global preview_b, thumbnail
+        global areaAllocationW_i, areaAllocationH_i
+        global preview_b
 
 
         if preview_b == False :
@@ -1783,7 +1904,7 @@ class gtkGui:
 
         if self.readGui(0) :
             if self.render.parsePageSelection() :
-                #readConditions()
+                #self.readConditions()
                 ar_pages, ar_layout = self.render.createPageLayout(0)
                 if ar_pages != None :
                     if previewPage > len(ar_pages) - 1 :
@@ -1807,26 +1928,18 @@ class gtkGui:
     def createThumbnail(self) :
         global areaAllocationW_i, areaAllocationH_i, previewtempfile, thumbnail
 
-    ##    data = previewtempfile.read()
-    ##
-    ##    if len(data) == 0 :
-    ##        return False
-    ##
-    ##    # Retrieve file contents -- this will be
-    ##    # 'First line.\nSecond line.\n'
-    ##    contents = output.getvalue()
-    ##
-    ##
-    ##    # Close object and discard memory buffer --
-    ##    # .getvalue() will now raise an exception.
-    ##    output.close()
 
         try :
             document = poppler.document_new_from_file("file:///" + os.path.join(temp_path_u, "preview.pdf"), None)
+            #self.document= document
         except :
             print "Error in function createThumbnails"
             return False
-        #document = poppler.document_new_from_data(data, len(data), None)  Does not seem possible : poppler does not offer reading from stream, only from file
+        #f1 = file(os.path.join(temp_path_u, "preview.pdf"))
+        #data = f1.read()
+        #f1.close()
+
+        #document2 = poppler.document_new_from_data(data, len(data), None)  #Does not work due to this bug : https://bugs.launchpad.net/poppler-python/+bug/312462
         page = document.get_page(0)
         pix_w, pix_h = page.get_size()
 
@@ -1871,6 +1984,9 @@ class gtkGui:
 
         # endfix ? =================================================================
 
+        del document
+        del pixmap
+
 
 
         #print str(time4 - time3)[0:4]
@@ -1911,7 +2027,7 @@ class gtkGui:
 
     def previewUpdate(self, Event = None, data = None) :
         global inputFiles_a
-        #print "previewUpdate"
+        print "previewUpdate"
         if len(inputFiles_a) == 0 :
             #self.showwarning(_("No file loaded"), _("Please select a file first"))
             shutil.copy(sfp("data/nofile.pdf"), os.path.join(temp_path_u, "preview.pdf"))
@@ -2115,10 +2231,14 @@ class gtkGui:
             self.arw["transformWindow"].hide()
             self.arw["transformationsbutton"].set_active(False)
 
-    def transformationsApply(self, widget, event="") :
-        global selected_page, rows_i
+    def ta2(self, widget, event = "") :
+        print "ta2", event
+        self.transformationsApply("")
 
-        # TODO : too many signals. apply only if something changed.
+    def transformationsApply(self, widget, event="", force_update = False) :
+        global selected_page, rows_i
+        #print "transformations apply"
+
         if selected_page == None :
             self.showwarning(_("No selection"), _("There is no selected page. \nPlease select a page first. "))
             return
@@ -2131,16 +2251,40 @@ class gtkGui:
         # if transformation is for this page only, use page ref instead of position ref
         if self.thispage.get_active() == 1 :
             Id = pageId
-        print Id
+        if self.evenpages.get_active() == 1 :
+            Id = "even"
+        if self.oddpages.get_active() == 1 :
+            Id = "odd"
+
         self.pagesTr[Id] = {}
         self.pagesTr[Id]["htranslate"] = self.readmmEntry(self.arw["Htranslate1"])
         self.pagesTr[Id]["vtranslate"] = self.readmmEntry(self.Vtranslate1)
         self.pagesTr[Id]["scale"] = self.readPercentEntry(self.scale1)
         self.pagesTr[Id]["rotate"] = self.readNumEntry(self.rotation1)
+        self.pagesTr[Id]["vflip"] = self.arw["vflip1"].get_active()
+        self.pagesTr[Id]["hflip"] = self.arw["hflip1"].get_active()
+        self.pagesTr[Id]["xscale"] = self.readPercentEntry(self.arw["xscale1"])
+        self.pagesTr[Id]["yscale"] = self.readPercentEntry(self.arw["yscale1"])
+
         self.pagesTr[Id]["htranslate1"] = self.arw["Htranslate1"].get_text()     # data from the gui unmodified
         self.pagesTr[Id]["vtranslate1"] = self.Vtranslate1.get_text()
         self.pagesTr[Id]["scale1"] = self.scale1.get_text()
         self.pagesTr[Id]["rotate1"] = self.rotation1.get_text()
+        self.pagesTr[Id]["xscale1"] = self.arw["xscale1"].get_text()
+        self.pagesTr[Id]["yscale1"] = self.arw["yscale1"].get_text()
+
+        if not force_update :
+            # prevent useless update. If no change, return.
+            a = repr(self.pagesTr[Id])
+            if self.pagesTr.has_key("memory1") :
+                b = self.pagesTr["memory1"]
+                if a == b :
+                    return
+            else :
+                self.pagesTr["memory2"] = 0
+            self.pagesTr["memory1"] = a
+            self.pagesTr["memory2"] += 1
+
         self.preview(self.previewPage, 0)
 
 
@@ -2148,15 +2292,25 @@ class gtkGui:
         self.arw["Htranslate1"].set_value(0)
         self.arw["Vtranslate1"].set_value(0)
         self.arw["scale1"].set_value(100)
+        self.arw["xscale1"].set_value(100)
+        self.arw["yscale1"].set_value(100)
         self.arw["rotation1"].set_value(0)
-        if event != 0 : self.transformationsApply("dummy")
+        self.arw["vflip1"].set_active(False)
+        self.arw["hflip1"].set_active(False)
+
+        if event != 0 : self.transformationsApply("dummy", force_update = True)
         pass
 
     def resetTransformations2(self, event = 0) :
+        # reset default values for global transformations
         self.arw["Htranslate2"].set_value(0)
         self.arw["Vtranslate2"].set_value(0)
         self.arw["scale2"].set_value(100)
+        self.arw["xscale2"].set_value(100)
+        self.arw["yscale2"].set_value(100)
         self.arw["rotation2"].set_value(0)
+        self.arw["vflip2"].set_active(False)
+        self.arw["hflip2"].set_active(False)
         if event != 0 :
             self.arw["globalRotation0"].set_active(1)
             self.previewUpdate()
@@ -2168,6 +2322,10 @@ class gtkGui:
         self.clipboard["scale1"] = self.scale1.get_text()
         self.clipboard["rotate1"] = self.rotation1.get_text()
         self.clipboard["this_page"] = self.thispage.get_active()
+        self.clipboard["xscale1"] = self.arw["xscale1"].get_text()
+        self.clipboard["yscale1"] = self.arw["yscale1"].get_text()
+        self.clipboard["vflip1"]  = self.arw["vflip1"].get_active()
+        self.clipboard["hflip1"]  = self.arw["hflip1"].get_active()
 
     def paste_transformations(self, event) :          # called by context menu
          self.arw["Htranslate1"].set_text(self.clipboard["htranslate1"])
@@ -2175,7 +2333,12 @@ class gtkGui:
          self.scale1.set_text(self.clipboard["scale1"])
          self.rotation1.set_text(self.clipboard["rotate1"])
          self.thispage.set_active(self.clipboard["this_page"])
-         self.transformationsApply("")
+         self.arw["xscale1"].set_text(self.clipboard["xscale1"])
+         self.arw["yscale1"].set_text(self.clipboard["yscale1"])
+         self.arw["vflip1"].set_active(self.clipboard["vflip1"])
+         self.arw["hflip1"].set_active(self.clipboard["hflip1"])
+
+         self.transformationsApply("", force_update = True)
 
 
     def showwarning(self, title, message) :
@@ -2218,6 +2381,32 @@ class gtkGui:
         dialog.destroy()
         return rep
 
+    def get_text(self, parent, message, default=''):
+        """
+        Display a dialog with a text entry.
+        Returns the text, or None if canceled.
+        """
+        d = gtk.MessageDialog(parent,
+                              gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                              gtk.MESSAGE_QUESTION,
+                              gtk.BUTTONS_OK_CANCEL,
+                              message)
+        entry = gtk.Entry()
+        entry.set_text(default)
+        entry.show()
+        d.vbox.pack_end(entry)
+        entry.connect('activate', lambda _: d.response(gtk.RESPONSE_OK))
+        d.set_default_response(gtk.RESPONSE_OK)
+
+        r = d.run()
+        text = entry.get_text().decode('utf8')
+        d.destroy()
+        if r == gtk.RESPONSE_OK:
+            return text
+        else:
+            return None
+
+
     def version21(self, widget) :
         self.showwarning("Not yet implemented", "This feature will be implemented in version 2.2")
 
@@ -2227,9 +2416,10 @@ class gtkGui:
     def aboutdialog1_close(self, widget,event) :
         self.arw["Pdf-Booklet"].hide()
 
-    def print2(self, string, cr=0) :
+    def print2(self, string, cr=0) :        # no  longer used
         global editIniFile
 
+        return
         editIniFile = 0
         enditer = self.text1.get_end_iter()
         self.text1.insert(enditer, string)
@@ -2253,10 +2443,9 @@ class gtkGui:
 
     def go(self, button, preview = -1) :
 
-        self.text1.set_text("")
         if self.readGui() :
             if self.render.parsePageSelection() :
-                #readConditions()
+                self.readConditions()
                 ar_pages, ar_layout = self.render.createPageLayout()
                 if ar_pages != None :
                     if self.render.createNewPdf(ar_pages, ar_layout, preview) :
@@ -2272,27 +2461,27 @@ class gtkGui:
 
 
 
-##def readConditions() :
-##    global optionsDict, config
-##
-##    return
-##    if app.arw["entry3"].get() == "" :
-##        return
-##    else :
-##        inifile = app.arw["entry3"].get()
-##        config = ConfigParser.RawConfigParser()
-##        config.readfp(open(inifile))
-##        optionsDict = {}
-##        optionsDict["pages"] = {}
-##        optionsDict["conditions"] = {}
-##
-##        if config.has_section("pages") :
-##            for a in config.options("pages") :
-##                optionsDict["pages"][a] = config.get("pages", a)
-##
-##        if config.has_section("conditions") :
-##            for a in config.options("conditions") :
-##                optionsDict["conditions"][a] = config.get("conditions", a)
+    def readConditions(self) :
+        global optionsDict, config
+
+        return
+        if app.arw["entry3"].get() == "" :
+            return
+        else :
+            inifile = app.arw["entry3"].get()
+            config = ConfigParser.RawConfigParser()
+            config.readfp(open(inifile))
+            optionsDict = {}
+            optionsDict["pages"] = {}
+            optionsDict["conditions"] = {}
+
+            if config.has_section("pages") :
+                for a in config.options("pages") :
+                    optionsDict["pages"][a] = config.get("pages", a)
+
+            if config.has_section("conditions") :
+                for a in config.options("conditions") :
+                    optionsDict["conditions"][a] = config.get("conditions", a)
 
 
     def test1(self, widget) :
@@ -2322,43 +2511,73 @@ class pdfRender():
         sin_l = 0
 
         transform_s = " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos_l , H_offset , V_offset)
-
         transformations = []
-        section_s = str(rows_i - row) + "," + str(column + 1)
-
 
         # Transformations defined in gui
 
+        # Transformations for page in position (row, col)
+        section_s = str(rows_i - row) + "," + str(column + 1)
         if app.pagesTr.has_key(section_s) :
-            if not "pdfRotate" in app.pagesTr[section_s] :
-                app.pagesTr[section_s]["pdfRotate"] = 0
-            if not "rotate" in app.pagesTr[section_s] :
-                app.pagesTr[section_s]["rotate"] = 0
+            transform_s += self.transform2(section_s)
 
-
-            transform_s += self.calcMatrix2(app.pagesTr[section_s]["htranslate"],
-                                       app.pagesTr[section_s]["vtranslate"],
-                                       cScale = app.pagesTr[section_s]["scale"],
-                                       cRotate = app.pagesTr[section_s]["rotate"],
-                                       Rotate = app.pagesTr[section_s]["pdfRotate"])
-
+        # Transformations for page #:#
         pageId = str(file_number) + ":" + str(page_number + 1)
-        if pageId in app.pagesTr :
+        if app.pagesTr.has_key(pageId) :
+            transform_s += self.transform2(pageId)
 
-            htranslate = app.pagesTr[pageId]["htranslate"]
-            vtranslate = app.pagesTr[pageId]["vtranslate"]
-            scale = app.pagesTr[pageId]["scale"]
-            rotate = float(get_value(app.pagesTr[pageId], "rotate", 0))
-            pdfrotate = int(get_value(app.pagesTr[pageId], "pdfrotate", 0))
 
-            if "shuffler_rotate" in app.pagesTr[pageId] :
+        # Transformations for even and odd pages
+        if page_number % 2 == 1 :
+            transform_s += self.transform2("even")
+        if page_number % 2 == 0 :
+            transform_s += self.transform2("odd")
+
+
+
+        # Transformations defined in ini file
+
+        if config.has_section("pages") :
+            pages_a = config.options("pages")
+            if section_s in pages_a :               # If the layout page presently treated is referenced in [pages]
+                temp1 = config.get("pages", section_s)
+                transformations += string.split(temp1, ", ")
+
+            if str(page_number + 1) in pages_a :    # If the page presently treated is referenced in [pages]
+                temp1 = config.get("pages", str(page_number + 1))
+                transformations += string.split(temp1, ", ")
+
+
+        if config.has_section("conditions") :
+            conditions_a = config.options("conditions")
+            for line1 in conditions_a :
+                condition_s = config.get("conditions", line1)
+                command_s, filters_s = string.split(condition_s, "=>")
+                if (eval(command_s)) :
+                    transformations += string.split(filters_s, ", ")
+
+        for a in transformations :
+
+            transform_s += self.calcMatrix(a)
+
+        return (transform_s)
+
+    def transform2(self, Id) :
+        # Calculates matrix for a given section
+        matrix_s = ""
+        if app.pagesTr.has_key(Id) :
+            if not "pdfRotate" in app.pagesTr[Id] :
+                app.pagesTr[Id]["pdfRotate"] = 0
+            if not "rotate" in app.pagesTr[Id] :
+                app.pagesTr[Id]["rotate"] = 0
+
+            if "shuffler_rotate" in app.pagesTr[Id] :
                 # we need the page size
                 pdfDoc = app.shuffler.pdfqueue[file_number-1]
                 page = pdfDoc.document.get_page(page_number)
                 pix_w, pix_h = page.get_size()
 
-                angle = int(app.pagesTr[pageId]["shuffler_rotate"])
-                pdfrotate +=   angle
+                angle = int(app.pagesTr[Id]["shuffler_rotate"])
+                pdfrotate += angle
                 if angle == 270 :
                     vtranslate = float(vtranslate) + float(pix_w)
                 elif angle == 90 :
@@ -2368,76 +2587,92 @@ class pdfRender():
                     vtranslate = float(vtranslate) + float(pix_h)
 
 
-            transform_s += self.calcMatrix2(htranslate,
-                                       vtranslate,
-                                       cScale = scale,
-                                       cRotate = rotate,
-                                       Rotate = pdfrotate)
-
-        # Transformations defined in ini file
-
-        if optionsDict.has_key("pages") :
-            if optionsDict["pages"].has_key(section_s) :
-                temp1 = optionsDict["pages"][section_s]
-                transformations += string.split(temp1, ", ")
-            if optionsDict["pages"].has_key(str(page_number + 1) ) :
-                transformations += [optionsDict["pages"][str(page_number + 1)]]
-            if optionsDict["pages"].has_key("@" + str(output_page_number) ) :
-                transformations += [optionsDict["pages"]["@" + str(output_page_number)]]
+            matrix_s = self.calcMatrix2(app.pagesTr[Id]["htranslate"],
+                                       app.pagesTr[Id]["vtranslate"],
+                                       cScale = app.pagesTr[Id]["scale"],
+                                       xscale = app.pagesTr[Id]["xscale"],
+                                       yscale = app.pagesTr[Id]["yscale"],
+                                       cRotate = app.pagesTr[Id]["rotate"],
+                                       Rotate = app.pagesTr[Id]["pdfRotate"],
+                                       vflip = app.pagesTr[Id]["vflip"],
+                                       hflip = app.pagesTr[Id]["hflip"])
 
 
-        if optionsDict.has_key("conditions") :
-            if optionsDict["conditions"].has_key("odd") :
-                temp1 = optionsDict["conditions"]["odd"]
-                condition_s, filters_s = string.split(temp1, "=>")
-                if (eval("page_number " + condition_s)) :
-                    transformations += string.split(filters_s, ", ")
 
-        for a in transformations :
+        return matrix_s
 
-            transform_s += calcMatrix(a)
 
-        return (transform_s)
-
-    def calcMatrix(self, data) :
+    def calcMatrix(self, data, myrows_i = 1, mycolumns_i = 1) :
             # Calculate matrix for transformations defined in the configuration
             global config
 
             trans = string.strip(data)
             cos_l = 1
+            cos2_l = 1
             sin_l = 0
             Htranslate = 0
             Vtranslate = 0
 
 
-            if config.has_option(trans, "Rotate") :
-                Rotate = config.getint(trans, "Rotate")
+            if config.has_option(trans, "PdfRotate") :
+                Rotate = config.getint(trans, "PdfRotate")
                 sin_l = math.sin(math.radians(Rotate))
                 cos_l = math.cos(math.radians(Rotate))
+                cos2_l = cos_l
 
-            if config.has_option(trans, "cRotate") :
-                Rotate = config.getint(trans, "cRotate")
+            if config.has_option(trans, "Rotate") :
+                try :
+                    Rotate = config.getfloat(trans, "Rotate")
+                except :
+                    pass
 
-                sin_l, cos_l, HCorr, VCorr = centeredRotation(Rotate)
+                sin_l, cos_l, HCorr, VCorr = self.centeredRotation(Rotate, myrows_i, mycolumns_i)
+                cos2_l = cos_l
 
                 Htranslate += HCorr
                 Vtranslate += VCorr
 
-            if config.has_option(trans, "Scale") :
-                Scale_f = config.getfloat(trans, "Scale") / 100
-                #sin_l = sin_l * Scale_f #pourquoi pas ?
-                cos_l = cos_l * Scale_f
 
-                HCorr = (urx_i * (Scale_f - 1)) / 2
-                VCorr = (ury_i * (Scale_f - 1)) / 2
+            if config.has_option(trans, "Scale") :
+                Scale_f = config.getfloat(trans, "Scale")
+                cos_l = cos_l * Scale_f
+                cos2_l = cos_l
+
+                HCorr = (urx_i * mycolumns_i * (Scale_f - 1)) / 2
+                VCorr = (ury_i * myrows_i * (Scale_f - 1)) / 2
                 Htranslate -= HCorr
                 Vtranslate -= VCorr
 
+            if config.has_option(trans, "xscale") :
+                Scale_f = config.getfloat(trans, "xscale")
+                cos_l = cos_l * Scale_f
+
+                HCorr = (urx_i * mycolumns_i * (Scale_f - 1)) / 2
+                Htranslate -= HCorr
+
+            if config.has_option(trans, "yScale") :
+                Scale_f = config.getfloat(trans, "yScale")
+                cos2_l = cos2_l * Scale_f
+
+                VCorr = (ury_i * myrows_i * (Scale_f - 1)) / 2
+                Vtranslate -= VCorr
+
+            # Vertical flip  : 1 0 0 -1 0 <height>
+            if config.has_option(trans, "vflip") :
+                cos2_l = cos2_l * (-1)
+                Vtranslate += ury_i * myrows_i
+
+            # Horizontal flip  : -1 0 0 1 0 <width>
+            if config.has_option(trans, "hflip") :
+                cos_l = cos_l * (-1)
+                Htranslate += urx_i * mycolumns_i
+
+
             if config.has_option(trans, "Htranslate") :
-                Htranslate += config.getint(trans, "Htranslate") / adobe_l
+                Htranslate += config.getfloat(trans, "Htranslate") / adobe_l
 
             if config.has_option(trans, "Vtranslate") :
-                Vtranslate += config.getint(trans, "Vtranslate") / adobe_l
+                Vtranslate += config.getfloat(trans, "Vtranslate") / adobe_l
 
 
 
@@ -2446,16 +2681,23 @@ class pdfRender():
 
 
 
-            transform_s = " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos_l , Htranslate , Vtranslate)
+            transform_s = " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos2_l , Htranslate , Vtranslate)
+
 
             if config.has_option(trans, "Matrix") :
                 Matrix = config.get(trans, "Matrix")
                 transform_s = " %s  cm  \n" % (Matrix)
 
+
             return transform_s
 
 
-    def calcMatrix2(self, Htranslate, Vtranslate, cScale = 1, Scale = 1, Rotate = 0, cRotate = 0, global_b = False) :
+    def calcMatrix2(self, Htranslate, Vtranslate,
+                          cScale = 1, Scale = 1,
+                          Rotate = 0, cRotate = 0,
+                          vflip = 0, hflip = 0,
+                          xscale = 1, yscale = 1,
+                          global_b = False) :
             # calculate matrix for transformations defined in parameters
 
             Htranslate = float(Htranslate)
@@ -2463,6 +2705,12 @@ class pdfRender():
             cos_l = 1
             sin_l = 0
 
+            if global_b == True :   # for global transformations, reference for centered scale, rotation and flip is the output page
+                myrows_i = rows_i
+                mycolumns_i = columns_i
+            else :                  # for page transformations, reference is the active source page
+                myrows_i = 1
+                mycolumns_i = 1
 
             if Scale != 1:
                 Scale_f = float(Scale)
@@ -2476,15 +2724,12 @@ class pdfRender():
                 cos_l = math.cos(math.radians(float(Rotate)))
             # TODO Rotate and cRotate are not compatible.
             elif cRotate != 0 :
-                if global_b == False :
-                    sin_l, cos_l, HCorr, VCorr = self.centeredRotation(float(cRotate))
-                else :
-                    sin_l, cos_l, HCorr, VCorr = self.globalCenteredRotation(float(cRotate))
+                sin_l, cos_l, HCorr, VCorr = self.centeredRotation(float(cRotate), myrows_i, mycolumns_i)
                 Htranslate += (HCorr * Scale_f)
                 Vtranslate += (VCorr * Scale_f)
 
             if Scale != 1 :
-                sin_l = sin_l* Scale_f
+                sin_l = sin_l * Scale_f
                 cos_l = cos_l * Scale_f
                 HCorr = (urx_i * (Scale_f - 1)) / 2
                 VCorr = (ury_i * (Scale_f - 1)) / 2
@@ -2492,19 +2737,11 @@ class pdfRender():
             if cScale != 1 :
                 sin_l = sin_l* Scale_f
                 cos_l = cos_l * Scale_f
-                if global_b == False :
-                    HCorr = (urx_i * (Scale_f - 1)) / 2
-                    VCorr = (ury_i * (Scale_f - 1)) / 2
-                else :              # center on the output page
-                    HCorr = (urx_i * columns_i * (Scale_f - 1)) / 2
-                    VCorr = (ury_i * rows_i * (Scale_f - 1)) / 2
-
-
-
+                HCorr = (urx_i * mycolumns_i * (Scale_f - 1)) / 2
+                VCorr = (ury_i * myrows_i * (Scale_f - 1)) / 2
 
                 Htranslate -= HCorr
                 Vtranslate -= VCorr
-
 
 
             if abs(sin_l) < 0.00001 : sin_l = 0          # contournement d'un petit problème : sin 180 ne renvoie pas 0 mais 1.22460635382e-16
@@ -2512,9 +2749,60 @@ class pdfRender():
 
             transform_s = " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos_l , Htranslate , Vtranslate)
 
+
+            Htranslate = 0
+            Vtranslate = 0
+            cos_l = 1
+            cos2_l = 1
+            sin_l = 0
+
+
+            if xscale != '1' and xscale != 1 :
+                xscale = float(xscale)
+                cos_l = cos_l * xscale
+
+                HCorr = (urx_i * mycolumns_i * (xscale - 1)) / 2
+                Htranslate -= HCorr
+
+            if yscale != '1' and yscale != 1:
+                yscale = float(yscale)
+                cos2_l = cos2_l * yscale
+
+                VCorr = (ury_i * myrows_i * (yscale - 1)) / 2
+                Vtranslate -= VCorr
+
+            if abs(sin_l) < 0.00001 : sin_l = 0          # contournement d'un petit problème : sin 180 ne renvoie pas 0 mais 1.22460635382e-16
+            if abs(cos_l) < 0.00001 : cos_l = 0
+
+            transform_s += " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos2_l , Htranslate , Vtranslate)
+
+
+            Htranslate = 0
+            Vtranslate = 0
+            cos_l = 1
+            cos2_l = 1
+            sin_l = 0
+
+            # Vertical flip  : 1 0 0 -1 0 <height>
+            if vflip != 0 and vflip != False  :
+                cos2_l = cos2_l * (-1)
+                Vtranslate += ury_i * myrows_i
+
+            # Horizontal flip  : -1 0 0 1 0 <width>
+            if hflip != 0 and hflip != False :
+                cos_l = cos_l * (-1)
+                Htranslate += urx_i * mycolumns_i
+
+
+
+            if abs(sin_l) < 0.00001 : sin_l = 0          # contournement d'un petit problème : sin 180 ne renvoie pas 0 mais 1.22460635382e-16
+            if abs(cos_l) < 0.00001 : cos_l = 0
+            if abs(cos2_l) < 0.00001 : cos2_l = 0
+
+            transform_s += " %s %s %s %s %s %s cm  \n" % (cos_l , sin_l, -sin_l, cos2_l , Htranslate , Vtranslate)
             return transform_s
 
-    def centeredRotation(self, Rotate) :
+    def centeredRotation_old(self, Rotate) :
 
         Rotate = math.radians(Rotate)
         sin_l = math.sin(Rotate)
@@ -2539,7 +2827,7 @@ class pdfRender():
 
         return (sin_l, cos_l, Hcorr, Vcorr)
 
-    def globalCenteredRotation(self, Rotate) :
+    def centeredRotation(self, Rotate, myrows_i = 1, mycolumns_i = 1) :
 
         Rotate = math.radians(Rotate)
         sin_l = math.sin(Rotate)
@@ -2550,8 +2838,8 @@ class pdfRender():
         # Vertical move   = cos(a + R) - cos(a)
         #Hence, corrections are sin(a) - sin(a+R) and cos(a) - cos(a-R)
 
-        oWidth_i = urx_i * columns_i
-        oHeight_i = ury_i * rows_i
+        oWidth_i = urx_i * mycolumns_i
+        oHeight_i = ury_i * myrows_i
 
         diag = math.pow((oWidth_i * oWidth_i) + (oHeight_i * oHeight_i), 0.5)
         alpha = math.atan2(oHeight_i, oWidth_i)
@@ -2595,7 +2883,7 @@ class pdfRender():
             page_orientation = "paysage"
 
 
-    ##    if ref_orientation == page_orientation :     # orientation is the same
+##    if ref_orientation == page_orientation :     # orientation is the same
         delta1 = ref_height / page_height
         delta2 = ref_width  / page_width
 
@@ -2605,10 +2893,6 @@ class pdfRender():
             Scale = delta2
 
         return Scale
-
-
-
-
 
 
 
@@ -2972,7 +3256,13 @@ class pdfRender():
                 "Close the file and start again"))
                 return
 
-        output_page_number = 1
+        if preview >= 0 :
+            output_page_number = preview + 1
+        else :
+            output_page_number = 1
+            # encryption
+            if app.permissions_i != -1 and app.password_s != "" :       # if permissions or password were present in the file
+                output.encrypt("", app.password_s, P = app.permissions_i)     # TODO : there may be two passwords (user and owner)
         for a in ar_pages :
             # create the output sheet
             page2 = output.addBlankPage(100,100)
@@ -2990,7 +3280,8 @@ class pdfRender():
             i = 0
             ar_data = []
 
-            if outputScale <> 1 :
+
+            if outputScale <> 1 and app.autoscale.get_active() == 1 :
                 temp1 = "%s 0 0 %s 0 0 cm \n" % (str(outputScale), str(outputScale))
                 ar_data.append([temp1])
 
@@ -3004,12 +3295,82 @@ class pdfRender():
             OScale  = app.readPercentEntry(app.arw["scale2"],
                                        _("Output page Scale"))
             if OScale == None : return False
+
             ORotate = app.readNumEntry(app.arw["rotation2"],
                                    _("Output page Rotation"))
             if ORotate == None : return False
 
-            temp1 = self.calcMatrix2(OHShift, OVShift, cScale = OScale, cRotate = ORotate, global_b = True)
+            Ovflip = app.arw["vflip2"].get_active()
+            Ohflip = app.arw["hflip2"].get_active()
+
+            Oxscale = app.readPercentEntry(app.arw["xscale2"],
+                                   _("Output page scale horizontally"))
+            if Oxscale == None : return False
+
+            Oyscale = app.readPercentEntry(app.arw["yscale2"],
+                                   _("Output page scale vertically"))
+            if Oyscale == None : return False
+
+
+
+            temp1 = self.calcMatrix2(OHShift, OVShift,
+                                     cScale = OScale,
+                                     cRotate = ORotate,
+                                     vflip = Ovflip,
+                                     hflip = Ohflip,
+                                     xscale = Oxscale,
+                                     yscale = Oyscale,
+                                     global_b = True)
             ar_data.append([temp1])
+
+
+
+            # Transformations defined in ini file
+
+
+            if config.has_section("pages") :
+                pages_a = config.options("pages")
+                if "@" + str(output_page_number) in pages_a :               # If the output page presently treated is referenced in [pages]
+                    temp1 = config.get("pages", "@" + str(output_page_number))
+                    transformations = string.split(temp1, ", ")
+                    for name_s in transformations :
+                        if config.has_option(name_s, "globalrotation") :
+                            gr_s = config.get(name_s.strip(), "globalrotation")
+                            gr_i = int(gr_s)
+                            if gr_i == 90 :
+                                newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(90)
+                            elif gr_i == 180 :
+                                newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(180)
+                            elif gr_i == 270 :
+                                newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(270)
+                        else :
+                            transform_s = self.calcMatrix(name_s, rows_i, columns_i)
+                            ar_data.append([transform_s])
+
+
+
+
+            if config.has_section("output_conditions") :
+                conditions_a = config.options("output_conditions")
+                for line1 in conditions_a :
+                    condition_s = config.get("output_conditions", line1)
+                    command_s, filters_s = string.split(condition_s, "=>")
+                    if (eval(command_s)) :
+                        transformations = string.split(filters_s, ", ")
+                        for name_s in transformations :
+                            if config.has_option(name_s.strip(), "globalrotation") :
+                                gr_s = config.get(name_s.strip(), "globalrotation")
+                                gr_i = int(gr_s)
+                                if gr_i == 90 :
+                                    newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(90)
+                                elif gr_i == 180 :
+                                    newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(180)
+                                elif gr_i == 270 :
+                                    newSheet[generic.NameObject("/Rotate")] = generic.NumberObject(270)
+                            else :
+                                transform_s = self.calcMatrix(name_s, rows_i, columns_i)
+                                ar_data.append([transform_s])
+
 
             oString = ""
 
@@ -3056,12 +3417,14 @@ class pdfRender():
                 newSheet.compressContentStreams()
 
 
-            if preview == -1 :
+            if preview == -1 :      # if we are creating a real file (not a preview)
                 message_s = _("Assembling pages: %s ")   % (ar_pages[a])
                 app.print2( message_s , 1)
                 app.status.set_text("page " + str(statusValue_i) + " / " + str(statusTotal_i))
                 statusValue_i += 1
             output_page_number += 1
+            while gtk.events_pending():
+                            gtk.main_iteration()
 
         time_e=time.time()
 
@@ -3069,13 +3432,15 @@ class pdfRender():
 
         output.write(outputStream)
         outputStream.close()
+        del output
 
 
         if debug_b == 1 :
             logfile_f.close()
 
-        if app.settings.get_active() == 1 :
-            app.saveProjectAs("",inputFile + u".ini")
+        if preview == -1 :      # if we are creating a real file (not a preview)
+            if app.settings.get_active() == 1 :
+                app.saveProjectAs("",inputFile + u".ini")
 
         return True
 
@@ -3207,15 +3572,11 @@ def extractBase() :
 
 def sfp(path) :
     # sfp = set full path
-    temp1 = os.path.join(prog_path_u, path)
-    temp1 = temp1.replace('\\', "/")
-    return temp1
+    return os.path.join(prog_path_u, path)
 
 def sfp2(file) :
     # sfp2 = set full path, used for temporary directory
-    temp1 = os.path.join(cfg_path_u, file)
-    temp1 = temp1.replace('\\', "/")
-    return temp1
+    return os.path.join(cfg_path_u, file)
 
 
 
@@ -3252,13 +3613,11 @@ def main() :
     global prog_path_u
     global temp_path_u
     global cfg_path_u
-    global translate_path_u
 
     isExcept = False
     startup_b = True
     preview_b = True
     project_b = False
-    language_s = ""
     openedProject_u = ""
     thumbnail = ""
     areaAllocationW_i = 1
@@ -3297,7 +3656,7 @@ def main() :
 
         if os.path.isfile(sfp("data/nofile.pdf")) :
             shutil.copy(sfp("data/nofile.pdf"), "/var/tmp/pdfbooklet/preview.pdf")
-        translate_path_u = "/usr/share/locale"
+
 
 
     else:
@@ -3307,8 +3666,6 @@ def main() :
         cfg_path_u = prog_path_u
         if os.path.isfile(sfp("data/nofile.pdf")) :
             shutil.copy(sfp("data/nofile.pdf"), os.path.join(temp_path_u, "preview.pdf"))
-            
-        translate_path_u = sfp("share/locale")
 
 
 
@@ -3320,25 +3677,21 @@ def main() :
 
         global render, app
         global inputFiles_a
-        if os.path.isfile(sfp2("pdfbooklet.cfg")) == False :
-            f1 = open(sfp2("pdfbooklet.cfg"), "w")
-            f1.close()
-        else :
-            config = ConfigParser.RawConfigParser()
-            config.readfp(open(sfp2("pdfbooklet.cfg")))
-            if config.has_option("options", "language") :         
-                language_s = config.get("options", "language")
 
         render = pdfRender()
-        app = gtkGui(render, language = language_s)
+        app = gtkGui(render)
 
         app.guiPresetsShow("booklet")
         app.resetTransformations(0)
         app.resetTransformations2(0)
         app.guiPresets(0)
 
-        app.parseIniFile(sfp2("pdfbooklet.cfg"))
 
+
+        if os.path.isfile(sfp2("pdfbooklet.cfg")) == False :
+            f1 = open(sfp2("pdfbooklet.cfg"), "w")
+            f1.close()
+        app.parseIniFile(sfp2("pdfbooklet.cfg"))
 
 
         if len(argv_a) > 1 :
@@ -3360,6 +3713,8 @@ def main() :
 ##        if len(inputFiles_a) > 0 :
 ##            app.preview(0)
 
+
+
         startup_b = False
 
         gtk.gdk.threads_init()
@@ -3368,6 +3723,7 @@ def main() :
         gtk.gdk.threads_leave()
 
         os._exit(0) # required because pdf-shuffler does not close correctly
+
 
 
     except :

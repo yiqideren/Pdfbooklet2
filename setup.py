@@ -3,7 +3,7 @@
 #
 # PdfBooklet 2.3.2 - GTK+ based utility to create booklets and other layouts 
 # from PDF documents.
-# Copyright (C) 2008-2015 GAF Software
+# Copyright (C) 2008-2012 GAF Software
 # <https://sourceforge.net/projects/pdfbooklet>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -25,22 +25,22 @@ import os
 import re
 import glob
 
-
+"""
 try :
     from setuptools import setup
     print "installation with setuptools"
 except :
+"""
+
+from distutils.core import setup
 
 
-    from distutils.core import setup
 
 
-
-
-data_files=[('share/pdfbooklet', glob.glob('pdfbooklet/*.*')),
-            ('share/pdfbooklet/data', glob.glob('data/*.*')),
+data_files=[('share/pdfbooklet/data', glob.glob('data/*.*')),
             ('share/pdfbooklet/documentation', glob.glob('documentation/*.*')),          
-            ('share/applications', ['data/pdfbooklet.desktop']),
+            ('/usr/share/applications', ['data/pdfbooklet.desktop']),
+            ('/usr/share/locale/fr/LC_MESSAGES', glob.glob('locale/fr/LC_MESSAGES')),
             ('share/pixmaps', ['data/pdfbooklet.png']),
             ('share/pdfbooklet/icons/hicolor/scalable', ['data/pdfbooklet.svg'])]
 
@@ -60,14 +60,14 @@ for name in os.listdir('po'):
         data_files.append((install_dir, [out_name]))
 """
 setup(name='pdfBooklet',
-      version='2.2.2',
+      version='2.3.2',
       author='GAF Software',
       author_email='Averell7 at sourceforge dot net',
       description='A simple application for creating booklets and other layouts from PDF files',
       url = 'https://sourceforge.net/projects/pdfbooklet',
       license='GNU GPL-3',
       scripts=['bin/pdfbooklet'],
-      packages=['pdfbooklet'],
+      packages=['pdfbooklet', 'pdfbooklet.pypdf113'],
       data_files=data_files,
       #requires=['python-poppler'],          # for distutils
       #install_requires=['python-poppler']   # for setuptools

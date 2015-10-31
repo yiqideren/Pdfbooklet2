@@ -83,7 +83,7 @@ class CellRendererImage(gtk.GenericCellRenderer):
         scale = self.resample * self.scale
         w2 = int(scale * (1. - self.cropL - self.cropR) * w1)
         h2 = int(scale * (1. - self.cropT - self.cropB) * h1)
-        
+
         return w0,h0,w1,h1,w2,h2,rotation
 
     def do_set_property(self, pspec, value):
@@ -92,7 +92,7 @@ class CellRendererImage(gtk.GenericCellRenderer):
     def do_get_property(self, pspec):
         return getattr(self, pspec.name)
 
-    def on_render(self, window, widget, background_area, cell_area, \
+    def do_render(self, window, widget, background_area, cell_area, \
                  expose_area, flags):
         if not self.image:
             return
@@ -144,8 +144,9 @@ class CellRendererImage(gtk.GenericCellRenderer):
         cr.set_source_surface(self.image)
         cr.paint()
 
-    def on_get_size(self, widget, cell_area=None):
+    def do_get_size(self, widget, cell_area=None):
         x = y = 0
+        print "get_size"
         w0,h0,w1,h1,w2,h2,rotation = self.get_geometry()
         th = int(2*self.th1+self.th2)
         w = w2 + th
