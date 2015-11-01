@@ -25,17 +25,23 @@ import os
 import re
 import glob
 
-version = "2.3.2"
-os.system('sudo python setup.py bdist')
-os.system('sudo python setup.py sdist')
-os.system('sudo python setup.py bdist_rpm')
 
+
+version = "2.3.2"
+print "\n\n ================ start bdist =============================\n\n"
+os.system('sudo python setup.py bdist')
+print "\n\n ================ end bdist - start sdist =================\n\n"
+os.system('sudo python setup.py sdist')
+print "\n\n ================ end sdist - start bdist_rpm =============\n\n"
+os.system('sudo python setup.py bdist_rpm')
+print "\n\n ================ end bdist_rpm ===========================\n\n"
 new_file = "./dist/pdfBooklet-" + version + "-1.noarch.rpm"
 new_dir = "./pdfBooklet-" + version + "/"
 if os.path.isfile(new_file) :
   print "found"
 
 # generate Debian package
+print "\n\n ================ Creating debian package =======================\n\n"
 os.system('sudo alien --generate --scripts ' + new_file)
 control_file = new_dir + "debian/control"
 if os.path.isfile(control_file) :
@@ -55,9 +61,11 @@ os.system("cd " + new_dir + "; sudo dpkg-buildpackage")
 deb_file = "./pdfbooklet_" + version + "-2_all.deb"
 
 # install package
-
+print "\n\n ================ Installing debian package =============================\n\n"
 os.system("sudo dpkg -i " + deb_file)
 os.system("sudo apt-get -f -y install")
+
+print "\n\n ================ build.py terminated =============================\n\n"
 
 
 
