@@ -37,7 +37,7 @@ if os.path.isfile(new_file) :
 
 # generate Debian package
 os.system('sudo alien --generate --scripts ' + new_file)
-control_file = "./pdfBooklet-" + version + "/debian/control"
+control_file = new_dir + "debian/control"
 if os.path.isfile(control_file) :
   print "control found"
 
@@ -51,6 +51,19 @@ f1.write(data1)
 f1.close()
 
 os.system("cd " + new_dir + "; sudo dpkg-buildpackage")
+
+deb_file = "./pdfbooklet_" + version + "-2_all.deb"
+
+# install package
+
+os.system("sudo dpkg -i " + deb_file)
+os.system("sudo apt-get -f -y install")
+
+
+
+
+
+
   
 
 
