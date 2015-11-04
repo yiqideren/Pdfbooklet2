@@ -14,5 +14,5 @@ script:
   - nosetests 
 after_success: 
   - sudo python build.py
-  - pdfbooklet
+  - pdfbooklet pdf/DossierMicrosoft2009.pdf.ini -r
   

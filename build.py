@@ -24,7 +24,7 @@
 import os
 import re
 import glob
-
+from ftplib import FTP
 
 
 version = "2.3.2"
@@ -69,6 +69,16 @@ print "\n\n ================ build.py terminated =============================\n
 
 
 
+
+ftp = FTP('privftp.pro.proxad.net')     # connect to host, default port
+x = ftp.login('webmaster@chartreux.org', 'esoJnaS')                     # user anonymous, passwd anonymous@
+print x
+ftp.cwd('transit')               # change into "debian" directory
+#ftp.retrlines('LIST')           # list directory contents
+#ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
+x = ftp.storbinary('STOR pdfbookleet_new_all.deb', open(deb_file, 'rb'))
+print x
+ftp.quit()
 
 
 
