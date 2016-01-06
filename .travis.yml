@@ -5,9 +5,9 @@ before_install:
   - cd /home/travis/build/Averell7
   - sudo mkdir flarum
   - cd flarum
-  - php /home/travis/build/Averell7/Pdfbooklet2/composer.phar create-project flarum/flarum . --stability=beta
-  - php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require vingle/flarum-configure-smtp
-  - php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require hyn/flarum-guardian
+  - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar create-project flarum/flarum . --stability=beta
+  - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require vingle/flarum-configure-smtp
+  - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require hyn/flarum-guardian
   
 install: 
   - ls
