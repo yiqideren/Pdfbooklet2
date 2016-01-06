@@ -2,16 +2,21 @@ sudo: required
 before_install:
   - sudo apt-get install php5-common  php5-cli
   - sudo php -r "readfile('https://getcomposer.org/installer');" | php
-#  - sudo curl -sS https://getcomposer.org/installer | php 
+  - cd /home
+  - sudo mkdir flarum
+  - cd flarum
+  - php composer.phar create-project flarum/flarum . --stability=beta
+  - php composer.phar require vingle/flarum-configure-smtp
+  - php composer.phar require hyn/flarum-guardian
+  
 install: 
   - ls
 
 before_script:
-  - flake8
   - mkdir -p shippable/{codecoverage,testresults}
 
 script: 
-  - tox -e py${TRAVIS_PYTHON_VERSION/\./}
+  - ls
   
 after_install:
  - sudo ls
