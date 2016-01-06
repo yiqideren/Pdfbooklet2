@@ -1,9 +1,10 @@
 sudo: required
 before_install:
-#  - sudo php -r "readfile('https://getcomposer.org/installer');" | php
-  - sudo curl -sS https://getcomposer.org/installer | php 
-install: 
   - pip install php
+  - sudo php -r "readfile('https://getcomposer.org/installer');" | php
+#  - sudo curl -sS https://getcomposer.org/installer | php 
+install: 
+  - ls
 
 before_script:
   - flake8
