@@ -1,6 +1,6 @@
 sudo: required
 before_install:
-  - pip install php
+  - sudo apt-get install php5-common  php5-cli
   - sudo php -r "readfile('https://getcomposer.org/installer');" | php
 #  - sudo curl -sS https://getcomposer.org/installer | php 
 install: 
