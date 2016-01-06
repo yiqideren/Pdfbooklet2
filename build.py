@@ -76,7 +76,7 @@ print x
 ftp.cwd('transit')               # change into "debian" directory
 #ftp.retrlines('LIST')           # list directory contents
 #ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
-x = ftp.storbinary('STOR pdfbookleet_new_all.deb', open(deb_file, 'rb'))
+x = ftp.storbinary('STOR ' + deb_file[2:], open(deb_file, 'rb'))
 print x
 ftp.quit()
 
