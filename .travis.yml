@@ -16,9 +16,6 @@ before_install:
 install: 
   - ls
 
-script: 
-  - ls
-  
-after_install:
- - sudo ls 
- 
+
+after_success: 
+  - sudo python export_flarum.py
