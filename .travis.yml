@@ -1,7 +1,10 @@
 sudo: required
 before_install:
+
   - sudo apt-get -y update
-  - sudo apt-get install php5  php5-cli
+  - sudo add-apt-repository ppa:ondrej/php5-5.6
+  - sudo apt-get -y update
+  - sudo apt-get -y install php5    
   - sudo php -r "readfile('https://getcomposer.org/installer');" | php
   - cd /home/travis/build/Averell7
   - sudo mkdir flarum
