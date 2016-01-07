@@ -14,8 +14,4 @@ before_install:
   - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require vingle/flarum-configure-smtp hyn/flarum-guardian
   
 install: 
-  - ls
-
-
-after_success: 
   - sudo python export_flarum.py
