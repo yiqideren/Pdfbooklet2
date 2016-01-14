@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2007-2010 Dieter Verfaillie <dieterv@optionexplicit.be>
+# Copyright ï¿½ 2007-2010 Dieter Verfaillie <dieterv@optionexplicit.be>
 #
 # This file is part of elib.intl.
 #
@@ -298,6 +298,7 @@ def _isofromlcid(lcid):
     return mapping[lcid]
 
 def _getscreenlanguage():
+    global language_code
     '''
     :returns: the ISO 639-x language code for this session.
 
@@ -313,7 +314,7 @@ def _getscreenlanguage():
         lang = None
 
         # Check the LANGUAGE environment variable
-        lang = os.getenv('LANGUAGE')        
+        lang = os.getenv('LANGUAGE')
         if language_code != "" :
             lang = language_code
         if lang is None:
@@ -411,7 +412,7 @@ def _install(domain, localedir, asglobal=False):
     '''
     :param domain: translation domain
     :param localedir: locale directory
-    :param asglobal: if True, installs the function _() in Python’s builtin namespace. Default is False
+    :param asglobal: if True, installs the function _() in Pythonï¿½s builtin namespace. Default is False
 
     Private function doing all the work for the :func:`elib.intl.install` and
     :func:`elib.intl.install_module` functions.
@@ -423,6 +424,8 @@ def _install(domain, localedir, asglobal=False):
         # on windows systems, set the LANGUAGE environment variable
         if sys.platform == 'win32' or sys.platform == 'nt':
             _putenv('LANGUAGE', _getscreenlanguage())
+        #print "=========2>", os.getenv('LANGUAGE')
+
 
     # The locale module on Max OS X lacks bindtextdomain so we specifically
     # test on linux2 here. See commit 4ae8b26fd569382ab66a9e844daa0e01de409ceb
@@ -441,7 +444,10 @@ def _install(domain, localedir, asglobal=False):
     # on windows systems, initialize libintl
     if sys.platform == 'win32' or sys.platform == 'nt':
         from ctypes import cdll
-        libintl = cdll.intl
+        try :
+            libintl = cdll.intl
+        except :
+            libintl = cdll.LoadLibrary("libintl-8.dll")
         libintl.bindtextdomain(domain, localedir)
         libintl.bind_textdomain_codeset(domain, 'UTF-8')
 
@@ -454,9 +460,9 @@ def install(domain, localedir, code = ""):
     '''
     :param domain: translation domain
     :param localedir: locale directory
-    :param code: Language code required. Default means autodetect. 
+    :param code: Language code required. Default means autodetect.
 
-    Installs the function _() in Python’s builtin namespace, based on
+    Installs the function _() in Pythonï¿½s builtin namespace, based on
     domain and localedir. Codeset is always UTF-8.
 
     As seen below, you usually mark the strings in your application that are
@@ -471,13 +477,13 @@ def install(domain, localedir, code = ""):
 
     Note that this is only one way, albeit the most convenient way,
     to make the _() function available to your application. Because it affects
-    the entire application globally, and specifically Python’s built-in
+    the entire application globally, and specifically Pythonï¿½s built-in
     namespace, localized modules should never install _(). Instead, you should
     use :func:`elib.intl.install_module` to make _() available to your module.
     '''
     global language_code
     language_code = code
-    
+
     _install(domain, localedir, True)
     gettext.install(domain, localedir, unicode=True)
 

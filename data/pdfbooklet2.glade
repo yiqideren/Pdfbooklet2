@@ -11,7 +11,7 @@
     <property name="deletable">False</property>
     <property name="transient_for">window1</property>
     <property name="program_name">Pdf-Booklet</property>
-    <property name="version">2.3.1</property>
+    <property name="version">2.3.3</property>
     <property name="website">pdfbooklet.url</property>
     <property name="website_label">http://pdfbooklet.sourceforge.net/</property>
     <property name="license" translatable="yes">Pdf-Shuffler is delivered under the GNU General Public Licence (GPL) Version 3.
@@ -48,6 +48,7 @@ Averell 7 for Pdf-Booklet</property>
     <property name="upper">360</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10.000000000223517</property>
   </object>
   <object class="GtkAdjustment" id="adjustment10">
     <property name="value">1</property>
@@ -55,48 +56,56 @@ Averell 7 for Pdf-Booklet</property>
     <property name="upper">100</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10</property>
   </object>
   <object class="GtkAdjustment" id="adjustment_scale">
     <property name="value">100</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10.000000000223517</property>
   </object>
   <object class="GtkAdjustment" id="adjustment3">
     <property name="lower">-10000</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10.000000000223517</property>
   </object>
   <object class="GtkAdjustment" id="adjustment4">
     <property name="lower">-10000</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10.000000000223517</property>
   </object>
   <object class="GtkAdjustment" id="adjustment5">
     <property name="lower">-10000</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">9.9999999997764828</property>
   </object>
   <object class="GtkAdjustment" id="adjustment6">
     <property name="lower">-10000</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">9.9999999997764828</property>
   </object>
   <object class="GtkAdjustment" id="adjustment7">
     <property name="lower">-360</property>
     <property name="upper">360</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">9.9999999997764828</property>
   </object>
   <object class="GtkAdjustment" id="adjustment_xscale1">
     <property name="value">100</property>
     <property name="upper">10000</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">10.000000000223517</property>
   </object>
   <object class="GtkAdjustment" id="adjustment9">
     <property name="value">2</property>
@@ -104,6 +113,7 @@ Averell 7 for Pdf-Booklet</property>
     <property name="upper">100</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
+    <property name="page_size">9.9999999997764828</property>
   </object>
   <object class="GtkMenu" id="contextmenu1">
     <property name="visible">True</property>

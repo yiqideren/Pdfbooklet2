@@ -1,17 +1,18 @@
+language: python
 sudo: required
+python:
+  - "2.7"
 before_install:
-
-  - sudo apt-get -y update
-  - sudo apt-get install -y language-pack-en-base
-  - sudo LC_ALL=en_US.UTF-8 add-apt-repository -y ppa:ondrej/php5-5.6
-  - sudo apt-get -y update
-  - sudo apt-get -y install php5 php5-mhash php5-mcrypt php5-curl php5-cli    
-  - sudo php -r "readfile('https://getcomposer.org/installer');" | php
-  - cd /home/travis/build/Averell7
-  - sudo mkdir flarum
-  - cd flarum
-  - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar create-project flarum/flarum . --stability=beta
-  - sudo php /home/travis/build/Averell7/Pdfbooklet2/composer.phar require vingle/flarum-configure-smtp hyn/flarum-guardian
-  
+  - sudo apt-get update -qq
+  - sudo apt-get install -y python-poppler 
+  - sudo apt-get install -y rpm
+  - sudo apt-get install -y alien
 install: 
-  - sudo python export_flarum.py
+  - pip install flake8 tox
+
+script: 
+  - nosetests 
+after_success: 
+  - sudo python build.py
+  
+  

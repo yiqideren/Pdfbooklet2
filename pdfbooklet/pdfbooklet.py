@@ -1,15 +1,12 @@
 #!/usr/bin/python
 # coding: utf-8 -*-
 
-# version 2.3.2;  30 / 09 / 2015
-# Revision 10  (bug fix)
-# Add advanced transformations in the ini file
-# Add support for encrypted files
-# Add support for even and odd pages
-# This version is compatible with Linux
+# version 2.3.3;  11 / 01 / 2016
+# Revision 1  (bug fix for user defined layout)
 
 
-PB_version = "2.3.2"
+
+PB_version = "2.3.3"
 
 
 """
@@ -89,7 +86,7 @@ gtk.rc_parse("./gtkrc")
 
 
 from pypdf113.pdf import PdfFileReader, PdfFileWriter
-import pypdf113.generic
+import pypdf113.generic as generic
 
 from files_chooser import Chooser
 
@@ -101,18 +98,6 @@ elib_intl.install("pdfbooklet", "share/locale")
 debug_b = 0
 
 
-
-##class pageSelector(PdfShuffler):
-##class pageSelector():
-##
-##    def __init__(self):
-##        pass
-##
-##    def getSelection(self):
-##        selection = []
-##        for row in self.model:
-##            selection += [str(row[2]) + ":" + str(row[3])]
-##        return selection
 
 def writeOption(filename, section, option, value) :
     configtemp = ConfigParser.RawConfigParser()
@@ -2027,7 +2012,6 @@ class gtkGui:
 
     def previewUpdate(self, Event = None, data = None) :
         global inputFiles_a
-        print "previewUpdate"
         if len(inputFiles_a) == 0 :
             #self.showwarning(_("No file loaded"), _("Please select a file first"))
             shutil.copy(sfp("data/nofile.pdf"), os.path.join(temp_path_u, "preview.pdf"))
@@ -3061,9 +3045,13 @@ class pdfRender():
         else :
             while index < (pgcount / step_i) :
                 start = last
-                last = last + step_i
+                if step_i >= cells_i :
+                    last += step_i
+                else :
+                    last += cells_i                 # this happens for multiple copies of the same page
+                                                    # We must have an array of at least (cells_i) elements
                 pages = []
-                for a in range(start, start + cells_i) :
+                for a in range(start, last) :
                     PageX = start + (a % step_i)
                     if PageX > totalPages :
                         pages = pages + [-1]
