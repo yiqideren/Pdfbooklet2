@@ -35,10 +35,29 @@ os.system('sudo python setup.py sdist')
 print "\n\n ================ end sdist - start bdist_rpm =============\n\n"
 os.system('sudo python setup.py bdist_rpm')
 print "\n\n ================ end bdist_rpm ===========================\n\n"
-new_file = "./dist/pdfBooklet-" + version + "-1.noarch.rpm"
+rpm_file = "./dist/pdfBooklet-" + version + "-1.noarch.rpm"
+tar_file = "./dist/pdfBooklet-" + version + ".tar.gz"
 new_dir = "./pdfBooklet-" + version + "/"
-if os.path.isfile(new_file) :
-  print "found"
+if os.path.isfile(rpm_file) :
+  print "found", rpm_file
+  
+if os.path.isfile(tar_file) :
+  print "found", tar_file
+  
+os.system("ls")
+
+
+ftp = FTP('perso-ftp.orange.fr')     # connect to host, default port
+x = ftp.login('dysmas1956@wanadoo.fr', '4ua7x9x')                     # user anonymous, passwd anonymous@
+print x
+ftp.cwd('pdfbooklet')               # change into "debian" directory
+#ftp.retrlines('LIST')           # list directory contents
+#ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
+x = ftp.storbinary('STOR ' + tar_file[8:], open(tar_file, 'rb'))
+print x
+x = ftp.storbinary('STOR ' + rpm_file[8:], open(rpm_file, 'rb'))
+print x
+
 
 # generate Debian package
 print "\n\n ================ Creating debian package =======================\n\n"
@@ -70,12 +89,7 @@ print "\n\n ================ build.py terminated =============================\n
 
 
 
-ftp = FTP('privftp.pro.proxad.net')     # connect to host, default port
-x = ftp.login('webmaster@chartreux.org', 'esoJnaS')                     # user anonymous, passwd anonymous@
-print x
-ftp.cwd('transit')               # change into "debian" directory
-#ftp.retrlines('LIST')           # list directory contents
-#ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
+
 x = ftp.storbinary('STOR ' + deb_file[2:], open(deb_file, 'rb'))
 print x
 ftp.quit()
