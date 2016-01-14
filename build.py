@@ -37,7 +37,8 @@ os.system('sudo python setup.py bdist_rpm')
 print "\n\n ================ end bdist_rpm ===========================\n\n"
 rpm_file = "./dist/pdfBooklet-" + version + "-1.noarch.rpm"
 tar_file = "./dist/pdfBooklet-" + version + ".tar.gz"
-new_dir = "./pdfBooklet-" + version + "/"
+tar64_file = "./dist/pdfBooklet-" + version + ".linux-x86_64.tar.gz"
+
 if os.path.isfile(rpm_file) :
   print "found", rpm_file
   
@@ -57,20 +58,25 @@ ftp.cwd('pdfbooklet')               # change into "debian" directory
 #ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
 try :
     x = ftp.storbinary('STOR ' + tar_file[8:], open(tar_file, 'rb'))
+        
 except :
     print "tar file error"
-print x
 
+try :
+    x = ftp.storbinary('STOR ' + tar64_file[8:], open(tar64_file, 'rb'))
+except :
+    print "rpm file error"
+    
 try :
     x = ftp.storbinary('STOR ' + rpm_file[8:], open(rpm_file, 'rb'))
 except :
     print "rpm file error"
-print x
 
 
 # generate Debian package
 print "\n\n ================ Creating debian package =======================\n\n"
-os.system('sudo alien --generate --scripts ' + new_file)
+new_dir = "./pdfBooklet-" + version + "/"
+os.system('sudo alien --generate --scripts ' + rpm_file)
 control_file = new_dir + "debian/control"
 if os.path.isfile(control_file) :
   print "control found"
