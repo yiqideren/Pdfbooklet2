@@ -44,8 +44,10 @@ if os.path.isfile(rpm_file) :
 if os.path.isfile(tar_file) :
   print "found", tar_file
   
-os.system("ls")
+os.system("ls ./dist")
 
+
+print "\n\n ================ Uploading tar.gz =======================\n\n"
 
 ftp = FTP('perso-ftp.orange.fr')     # connect to host, default port
 x = ftp.login('dysmas1956@wanadoo.fr', '4ua7x9x')                     # user anonymous, passwd anonymous@
@@ -53,9 +55,16 @@ print x
 ftp.cwd('pdfbooklet')               # change into "debian" directory
 #ftp.retrlines('LIST')           # list directory contents
 #ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
-x = ftp.storbinary('STOR ' + tar_file[8:], open(tar_file, 'rb'))
+try :
+    x = ftp.storbinary('STOR ' + tar_file[8:], open(tar_file, 'rb'))
+except :
+    print "tar file error"
 print x
-x = ftp.storbinary('STOR ' + rpm_file[8:], open(rpm_file, 'rb'))
+
+try :
+    x = ftp.storbinary('STOR ' + rpm_file[8:], open(rpm_file, 'rb'))
+except :
+    print "rpm file error"
 print x
 
 
