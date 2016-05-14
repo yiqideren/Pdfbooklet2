@@ -146,7 +146,6 @@ class CellRendererImage(gtk.GenericCellRenderer):
 
     def do_get_size(self, widget, cell_area=None):
         x = y = 0
-        print "get_size"
         w0,h0,w1,h1,w2,h2,rotation = self.get_geometry()
         th = int(2*self.th1+self.th2)
         w = w2 + th

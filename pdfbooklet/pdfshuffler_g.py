@@ -340,7 +340,8 @@ class PdfShuffler:
             return False
         elif not self.progress_bar.flags() & gtk.VISIBLE:
             self.progress_bar.show_all()
-
+        while gtk.events_pending():
+                        gtk.main_iteration()
         return True
 
     def update_thumbnail(self, object, num, thumbnail, resample):

@@ -85,8 +85,8 @@ import gio          #to inquire mime types information
 gtk.rc_parse("./gtkrc")
 
 
-from pypdf113.pdf import PdfFileReader, PdfFileWriter
-import pypdf113.generic as generic
+from pypdf113_3.pdf import PdfFileReader, PdfFileWriter
+import pypdf113_3.generic as generic
 
 from files_chooser import Chooser
 

@@ -26,9 +26,9 @@ setup(
     # The first three parameters are not required, if at least a
     # 'version' is given, then a versioninfo resource is built from
     # them and added to the executables.
-    version = "2.3.2",
-    description = "py2exe sample script",
-    name = "py2exe samples",
+    version = "2.2.2",
+    description = "Pdf utility to create booklets and other layouts",
+    name = "pdfBooklet",
     options = {"py2exe": options},
     zipfile = None, # append zip-archive to the executable.
     
