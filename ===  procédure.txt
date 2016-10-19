@@ -1,0 +1,1 @@
+IL fut changer la version dans setup.py ET dans build.py

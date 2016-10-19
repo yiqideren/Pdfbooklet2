@@ -60,7 +60,7 @@ for name in os.listdir('po'):
         data_files.append((install_dir, [out_name]))
 """
 setup(name='pdfBooklet',
-      version='2.3.3',
+      version='2.3.4',
       author='GAF Software',
       author_email='Averell7 at sourceforge dot net',
       description='A simple application for creating booklets and other layouts from PDF files',
