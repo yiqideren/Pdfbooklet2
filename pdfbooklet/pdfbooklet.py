@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # coding: utf-8 -*-
 
-# version 2.3.3;  11 / 01 / 2016
-# Revision 1  (bug fix for user defined layout)
+# version 2.3.4;  19 / 10 / 2016
+# Revision 1  (bug fix for xCopies in layout)
 
 
 
-PB_version = "2.3.3"
+PB_version = "2.3.4"
 
 
 """
@@ -85,8 +85,11 @@ import gio          #to inquire mime types information
 gtk.rc_parse("./gtkrc")
 
 
-from pypdf113_3.pdf import PdfFileReader, PdfFileWriter
-import pypdf113_3.generic as generic
+#from pypdf113_3.pdf import PdfFileReader, PdfFileWriter        Pas bon. Les fichiers ne s'ouvrent pas
+#import pypdf113_3.generic as generic
+
+from pypdf113.pdf import PdfFileReader, PdfFileWriter
+import pypdf113.generic as generic
 
 from files_chooser import Chooser
 
@@ -3044,17 +3047,19 @@ class pdfRender():
 
         else :
             while index < (pgcount / step_i) :
-                start = last
+                start = last          # Start to the last defined position
+                last += step_i        # Prepare position for the next loop
+
                 if step_i >= cells_i :
-                    last += step_i
+                    last2 = last
                 else :
-                    last += cells_i                 # this happens for multiple copies of the same page
+                    last2 = start + cells_i         # this happens for multiple copies of the same page
                                                     # We must have an array of at least (cells_i) elements
                 pages = []
-                for a in range(start, last) :
+                for a in range(start, last2) :
                     PageX = start + (a % step_i)
-                    if PageX > totalPages :
-                        pages = pages + [-1]
+                    if PageX >= totalPages :
+                        pages = pages + [-1]          # ajouter une page blanche
                     else :
                         pages = pages + [pagesSel[PageX]]
                 ar_pages[index] = pages
