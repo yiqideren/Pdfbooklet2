@@ -66,12 +66,12 @@ except :
 try :
     x = ftp.storbinary('STOR ' + tar64_file[8:], open(tar64_file, 'rb'))
 except :
-    print "rpm file error"
+    print "tar64 file error"
     
 try :
     x = ftp.storbinary('STOR ' + rpm_file[8:], open(rpm_file, 'rb'))
 except :
-    print "binary file error"
+    print "rpm file error"
 
 
 # generate Debian package
