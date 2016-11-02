@@ -35,19 +35,15 @@ os.system('sudo python setup.py sdist')
 print "\n\n ================ end sdist - start bdist_rpm =============\n\n"
 os.system('sudo python setup.py bdist_rpm')
 print "\n\n ================ end bdist_rpm ===========================\n\n"
-rpm_file = "./dist/pdfbooklet-" + version + "-1.noarch.rpm"
-tar_file = "./dist/pdfbooklet-" + version + ".tar.gz"
-tar64_file = "./dist/pdfbooklet-" + version + ".linux-x86_64.tar.gz"
+rpm_file = "./dist/pdfBooklet-" + version + "-1.noarch.rpm"
+tar_file = "./dist/pdfBooklet-" + version + ".tar.gz"
+tar64_file = "./dist/pdfBooklet-" + version + ".linux-x86_64.tar.gz"
 
 if os.path.isfile(rpm_file) :
-  print "found rpm", rpm_file
-else :
-    print "NOT found rpm", rpm_file
+  print "found", rpm_file
   
 if os.path.isfile(tar_file) :
-  print "found tar", tar_file
-else :
-    print "NOT found tar", tar_file
+  print "found", tar_file
   
 os.system("ls ./dist")
 
@@ -61,43 +57,30 @@ ftp.cwd('pdfbooklet')               # change into "debian" directory
 #ftp.retrlines('LIST')           # list directory contents
 #ftp.retrbinary('RETR Archeotes.sqlite', open('Archeotes.sqlite', 'wb').write)
 try :
-    command = 'STOR ' + tar_file[7:]
-    x = ftp.storbinary(command, open(tar_file, 'rb'))    
-except :    
-    print "tar file error :", command
+        command = 'STOR ' + tar_file[7:]
+        x = ftp.storbinary(command, open(tar_file, 'rb'))
+        
+except :
+    print "tar file error"
 
 try :
-    command = 'STOR ' + tar64_file[7:] 
-    x = ftp.storbinary(command, open(tar64_file, 'rb'))
+    x = ftp.storbinary('STOR ' + tar64_file[7:], open(tar64_file, 'rb'))
 except :
-    print "tar64 file error :", command
+    print "tar64 file error"
     
 try :
-    command = 'STOR ' + rpm_file[7:]
-    x = ftp.storbinary(command, open(rpm_file, 'rb'))
+    x = ftp.storbinary('STOR ' + rpm_file[7:], open(rpm_file, 'rb'))
 except :
-    print "rpm file error :", command
+    print "rpm file error"
 
 
 # generate Debian package
 print "\n\n ================ Creating debian package =======================\n\n"
-
-
-new_dir = "./pdfbooklet-" + version + "/"
+new_dir = "./pdfBooklet-" + version + "/"
 os.system('sudo alien --generate --scripts ' + rpm_file)
 control_file = new_dir + "debian/control"
 if os.path.isfile(control_file) :
   print "control found"
-else :
-    print "control NOT found. See log.txt"
-    # walkdirectory
-    f1 = open("./log.txt", "w")
-    for data in os.walk("./") :
-        f1.write(repr(data))
-    f1.close()
-    
-    command = 'STOR ' + "./log.txt"
-    x = ftp.storbinary(command, open("./log.txt", 'rb'))
 
 f1 = open(control_file, "r")
 
@@ -111,9 +94,6 @@ f1.close()
 os.system("cd " + new_dir + "; sudo dpkg-buildpackage")
 
 deb_file = "./pdfbooklet_" + version + "-2_all.deb"
-if not os.path.isfile(deb_file) :
-    deb_file = "./maggy2-" + version + "-2_all.deb"
-    print "=========> file is : ", deb_file
 
 # install package
 print "\n\n ================ Installing debian package =============================\n\n"
